@@ -53,7 +53,7 @@ class _ChatPageState extends State<ChatPage> {
     return Scaffold(
       appBar: AppBar(
         backgroundColor: Theme.of(context).colorScheme.inversePrimary,
-        title: const Text('Bodercoli'),
+        title: const Text('Beauty Hair'),
       ),
       // SafeArea는 화면의 안전 영역을 고려하여 자식 위젯을 배치하는 위젯입니다.
       body: SafeArea(

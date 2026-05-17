@@ -1,4 +1,6 @@
 import 'package:flutter/material.dart';
+import 'package:shared_preferences/shared_preferences.dart';
+import '../services/auth_service.dart';
 import 'chat_page.dart';
 
 class LoginPage extends StatefulWidget {
@@ -9,8 +11,10 @@ class LoginPage extends StatefulWidget {
 }
 
 class _LoginPageState extends State<LoginPage> {
-  final TextEditingController _emailController = TextEditingController();
-  final TextEditingController _passwordController = TextEditingController();
+  final AuthService _authService = AuthService();
+  final TextEditingController _emailController = TextEditingController(text: 'customer@daum.net');
+  final TextEditingController _passwordController = TextEditingController(text: 'password123');
+  bool _isLoading = false;
 
   @override
   void dispose() {
@@ -19,7 +23,7 @@ class _LoginPageState extends State<LoginPage> {
     super.dispose();
   }
 
-  void _login() {
+  Future<void> _login() async {
     final email = _emailController.text.trim();
     final password = _passwordController.text.trim();
 
@@ -30,11 +34,29 @@ class _LoginPageState extends State<LoginPage> {
       return;
     }
 
-    // TODO: 실제 인증 로직은 BeautyBook API 연동 시 구현
-    Navigator.pushReplacement(
-      context,
-      MaterialPageRoute(builder: (context) => const ChatPage()),
-    );
+    setState(() => _isLoading = true);
+
+    try {
+      final data = await _authService.login(email, password);
+      if (!mounted) return;
+
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.setString('accessToken', data['accessToken']);
+      await prefs.setString('refreshToken', data['refreshToken']);
+
+      Navigator.pushReplacement(
+        context,
+        MaterialPageRoute(builder: (context) => const ChatPage()),
+      );
+    } catch (e) {
+      debugPrint('로그인 에러: $e');
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('로그인 실패: $e')),
+      );
+    } finally {
+      if (mounted) setState(() => _isLoading = false);
+    }
   }
 
   @override
@@ -49,13 +71,13 @@ class _LoginPageState extends State<LoginPage> {
               children: [
                 // 앱 로고/타이틀
                 Icon(
-                  Icons.pets,
+                  Icons.content_cut,
                   size: 80,
                   color: Theme.of(context).colorScheme.primary,
                 ),
                 const SizedBox(height: 16),
                 Text(
-                  'Bodercoli',
+                  'Beauty Hair',
                   style: Theme.of(context).textTheme.headlineLarge?.copyWith(
                     fontWeight: FontWeight.bold,
                     color: Theme.of(context).colorScheme.primary,
@@ -97,7 +119,7 @@ class _LoginPageState extends State<LoginPage> {
                   width: double.infinity,
                   height: 48,
                   child: ElevatedButton(
-                    onPressed: _login,
+                    onPressed: _isLoading ? null : _login,
                     style: ElevatedButton.styleFrom(
                       backgroundColor: Theme.of(context).colorScheme.primary,
                       foregroundColor: Colors.white,
@@ -105,10 +127,19 @@ class _LoginPageState extends State<LoginPage> {
                         borderRadius: BorderRadius.circular(12),
                       ),
                     ),
-                    child: const Text(
-                      '로그인',
-                      style: TextStyle(fontSize: 16),
-                    ),
+                    child: _isLoading
+                        ? const SizedBox(
+                            width: 20,
+                            height: 20,
+                            child: CircularProgressIndicator(
+                              strokeWidth: 2,
+                              color: Colors.white,
+                            ),
+                          )
+                        : const Text(
+                            '로그인',
+                            style: TextStyle(fontSize: 16),
+                          ),
                   ),
                 ),
                 const SizedBox(height: 16),
